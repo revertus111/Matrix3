@@ -5,4 +5,5 @@
 - Added local readiness checks for login port 7777 and game port 43593 before client startup.
 - Added Android framebuffer `SurfaceView` plus touch/key bridge for the revision-830 client port.
 - Documented the verified desktop-only client dependencies that must be replaced before the real 830 client can run in the APK.
-- Apply Windows-1252 immediately before Android javac runs so legacy Matrix3 identifiers/strings compile on Linux CI without renaming or rewriting original source.
+- Changed mobile packaging to compile the unchanged Matrix3 server as Java 8 bytecode first, then package that bytecode into the APK. This preserves dormant desktop/AWT tooling without forcing Android javac to compile it.
+- Removed the unsupported Android `Os.chdir` call; the mobile runtime sets the Matrix3 server working-directory property before launcher startup.
