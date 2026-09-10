@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    implementation 'org.ow2.asm:asm:9.7.1'
+    implementation 'org.ow2.asm:asm-commons:9.7.1'
+}
+
+application {
+    mainClass = 'com.matrix3.mobile.tools.ClientBytecodeRemapper'
+}
+
+tasks.named('run').configure {
+    args rootProject.file('../Client/build/classes/java/main').absolutePath,
+            rootProject.file('app/libs/matrix3-client-remapped.jar').absolutePath
+}
