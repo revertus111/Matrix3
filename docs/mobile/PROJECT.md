@@ -12,7 +12,8 @@ Ship Matrix3 as one Android APK that runs the revision-830 login server, game se
 
 - [x] Add standalone `Mobile/` Android application project.
 - [x] Keep Android Java source compatibility at Java 8.
-- [x] Compile/package Matrix3 server source and existing server JAR dependencies through the mobile module.
+- [x] Compile the unchanged Matrix3 server as Java 8 bytecode and package it into the APK.
+- [x] Produce a CI-built debug APK containing the Matrix3 server stack.
 - [x] Run login and game launchers in separate Android processes so shared Matrix3 static state is isolated.
 - [x] Install bundled Matrix3 server data into app-private storage.
 - [x] Add first-run revision-830 cache folder import into `data/cache/`.
@@ -20,13 +21,14 @@ Ship Matrix3 as one Android APK that runs the revision-830 login server, game se
 - [x] Add Android `SurfaceView` host accepting ARGB client frames.
 - [x] Add touch/key input bridge state for the client port.
 - [x] Identify the first desktop client-host compatibility boundary without renaming obfuscated code.
-- [ ] Make the existing revision-830 client source set compile for Android without renaming obfuscated classes/methods/fields.
-- [ ] Replace/isolate `java.applet`, AWT/Swing, `ImageIO`, and desktop-only client host dependencies.
+- [x] Add a build-time bytecode remapper that preserves Matrix3 class/method/field names while redirecting desktop Java UI API references into the Android compatibility namespace.
+- [ ] Package the remapped revision-830 client classes into the Android APK.
+- [ ] Implement the exact `java.applet`, AWT/Swing, and ImageIO compatibility types required by the remapped client.
 - [ ] Classify and replace native/desktop-only client libraries such as `jaclib.ping` where required.
 - [ ] Feed the client software framebuffer into `MatrixClientSurfaceView.presentFrame(...)`.
 - [ ] Route Android touch/key/IME input into the existing client input consumers.
 - [ ] Start the ported 830 client automatically after both local servers report ready.
-- [ ] Produce and install a debug APK on a real Android ARM64 device.
+- [ ] Install a client-enabled debug APK on a real Android ARM64 device.
 - [ ] Verify offline login and gameplay against `127.0.0.1`.
 
 ## Verified static findings
@@ -34,10 +36,13 @@ Ship Matrix3 as one Android APK that runs the revision-830 login server, game se
 - `Server/src/main/java/com/rs/LoginLauncher.java` is the Matrix3 login entry point and accepts local/debug defaults.
 - `Server/src/main/java/com/rs/GameLauncher.java` is the Matrix3 game entry point and accepts local/debug defaults.
 - Local Matrix3 settings use loopback addresses; login server port is 7777 and game port is 43593.
-- Matrix3 server source contains Windows-1252-era identifiers/strings. Mobile Linux CI must preserve that encoding instead of rewriting legacy identifiers.
+- Matrix3 server source contains Windows-1252-era identifiers/strings. Mobile Linux CI preserves that source encoding instead of rewriting legacy identifiers.
+- Android source compilation of the complete server exposed dormant AWT tooling, so the mobile build now compiles the unchanged server through its normal Java toolchain first and feeds Java 8 bytecode to Android/D8. This path has produced a successful debug APK in CI.
 - `Client/src/main/java/game/RS3Applet.java` is the desktop client host and already targets `127.0.0.1` in local mode.
-- `Client/src/main/java/game/client.java` directly imports desktop-only AWT/image classes and `jaclib.ping`; the complete client source cannot be compiled by Android unchanged.
+- `RS3Applet.startClient()` only creates `game.client`, calls `supplyApplet(...)`, then `init()` and `start()`. The Swing `JFrame` is desktop host code and is not required as the Android launch surface.
+- `Client/src/main/java/game/client.java` directly imports desktop-only AWT/image classes and `jaclib.ping`; the complete client cannot run on Android unchanged.
 - `Client/src/main/java/game/Class584.java` owns the desktop `Applet`/`Frame`/`Canvas` lifecycle used by the client game loop.
+- `Class584.supplyApplet(Applet)` stores the supplied host in the client static applet slot; this is the direct seam for an Android parameter/container host after bytecode remapping.
 - `Client/src/main/java/game/Class591_Sub5.java#method8786` selects the current AWT `Container` from fullscreen frame, normal frame, or applet.
 - `Client/src/main/java/game/Canvas_Sub1.java` is a thin AWT `Canvas` wrapper that delegates `paint`/`update` to its backing component.
 
@@ -49,6 +54,11 @@ Matrix3 Mobile APK
 +-- Android MainActivity
 |   +-- MatrixClientSurfaceView
 |   +-- touch/key bridge
+|   +-- Android applet/container compatibility host
+|
++-- remapped Matrix3 revision-830 client bytecode
+|   +-- original game/* class names preserved
+|   +-- desktop API refs -> com.matrix3.mobile.compat/*
 |
 +-- :login Android process
 |   +-- com.rs.LoginLauncher
@@ -62,8 +72,8 @@ Matrix3 Mobile APK
     +-- data/cache        <- imported revision-830 cache
 ```
 
-The existing Matrix3 `Client/` and `Server/` remain the source of truth. Mobile compatibility belongs in `Mobile/` or the smallest explicitly required client adapter; do not fork gameplay/server behavior into an Android-only implementation.
+The existing Matrix3 `Client/` and `Server/` remain the source of truth. Mobile compatibility belongs in `Mobile/` or the smallest explicitly required adapter; do not fork gameplay/server behavior into an Android-only implementation.
 
 ## Resume Here
 
-Implement the first client-host compatibility slice around `Class584`, `Class591_Sub5.method8786`, and `Canvas_Sub1`: separate desktop AWT/Applet container ownership from the existing game-loop lifecycle and route the Android build to `MatrixClientSurfaceView` without renaming original classes/methods/fields. Do not touch combat, networking, cache semantics, or unrelated rendering systems. After the host compiles, let Android javac/D8 identify the next exact client-only desktop/native dependency.
+Run the client bytecode remapper in CI and capture its exact mapped desktop type set. Implement only the compatibility classes required by that report, beginning with the verified host chain `RS3Applet/startClient -> game.client -> Class584.supplyApplet -> Class591_Sub5.method8786 -> Canvas_Sub1`. Then package the remapped client JAR into the APK and add the Android client bootstrap. Do not touch combat, networking, cache semantics, or unrelated renderer logic until D8/runtime evidence requires it.
