@@ -1,0 +1,62 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.matrix3.mobile'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.matrix3.mobile'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs += ['../../Server/src/main/java']
+            assets.srcDirs += ["$buildDir/generated/serverDataAssets"]
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += [
+                    'META-INF/DEPENDENCIES',
+                    'META-INF/LICENSE',
+                    'META-INF/LICENSE.txt',
+                    'META-INF/NOTICE',
+                    'META-INF/NOTICE.txt'
+            ]
+        }
+    }
+}
+
+def generatedServerAssets = file("$buildDir/generated/serverDataAssets/server/data")
+
+tasks.register('syncServerData', Copy) {
+    from('../../Server/data') {
+        exclude 'cache/**'
+        exclude 'libs/**'
+    }
+    into generatedServerAssets
+}
+
+tasks.named('preBuild').configure {
+    dependsOn tasks.named('syncServerData')
+}
+
+dependencies {
+    implementation files('../../Server/data/libs/FileStore.jar')
+    implementation files('../../Server/data/libs/minifs_v1.jar')
+    implementation files('../../Server/data/libs/netty-3.7.0.Final.jar')
+    implementation files('../../Server/data/libs/mysql-connector-java-5.0.8-bin.jar')
+    implementation 'androidx.documentfile:documentfile:1.0.1'
+}
