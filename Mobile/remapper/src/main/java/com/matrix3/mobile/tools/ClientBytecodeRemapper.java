@@ -1,7 +1,11 @@
 package com.matrix3.mobile.tools;
 
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.Remapper;
 
@@ -34,6 +38,8 @@ public final class ClientBytecodeRemapper {
 
         Files.createDirectories(outputJar.getParent());
         final Set<String> mappedDesktopTypes = new TreeSet<String>();
+        final Set<String> desktopMethods = new TreeSet<String>();
+        final Set<String> desktopFields = new TreeSet<String>();
         final Remapper remapper = new Remapper() {
             @Override
             public String map(String internalName) {
@@ -50,19 +56,31 @@ public final class ClientBytecodeRemapper {
                     .filter(Files::isRegularFile)
                     .filter(path -> path.toString().endsWith(".class"))
                     .sorted()
-                    .forEach(path -> writeClass(inputRoot, path, out, remapper));
+                    .forEach(path -> writeClass(inputRoot, path, out, remapper, desktopMethods, desktopFields));
         }
 
         System.out.println("Matrix3 mobile client desktop API remap:");
         for (String type : mappedDesktopTypes) {
             System.out.println("  " + type);
         }
+        System.out.println("Matrix3 mobile desktop method contract:");
+        for (String method : desktopMethods) {
+            System.out.println("  " + method);
+        }
+        System.out.println("Matrix3 mobile desktop field contract:");
+        for (String field : desktopFields) {
+            System.out.println("  " + field);
+        }
         System.out.println("Remapped client jar: " + outputJar);
     }
 
-    private static void writeClass(Path inputRoot, Path classFile, JarOutputStream out, Remapper remapper) {
+    private static void writeClass(Path inputRoot, Path classFile, JarOutputStream out, Remapper remapper,
+            Set<String> desktopMethods, Set<String> desktopFields) {
         try (InputStream in = Files.newInputStream(classFile)) {
             ClassReader reader = new ClassReader(in);
+            reader.accept(new DesktopApiUsageCollector(desktopMethods, desktopFields),
+                    ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+
             ClassWriter writer = new ClassWriter(0);
             ClassRemapper classRemapper = new ClassRemapper(writer, remapper);
             reader.accept(classRemapper, 0);
@@ -76,6 +94,46 @@ public final class ClientBytecodeRemapper {
         } catch (IOException exception) {
             throw new RuntimeException("Unable to remap " + classFile, exception);
         }
+    }
+
+    private static final class DesktopApiUsageCollector extends ClassVisitor {
+
+        private final Set<String> methods;
+        private final Set<String> fields;
+
+        DesktopApiUsageCollector(Set<String> methods, Set<String> fields) {
+            super(Opcodes.ASM9);
+            this.methods = methods;
+            this.fields = fields;
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String descriptor, String signature,
+                String[] exceptions) {
+            return new MethodVisitor(Opcodes.ASM9) {
+                @Override
+                public void visitMethodInsn(int opcode, String owner, String methodName, String methodDescriptor,
+                        boolean isInterface) {
+                    if (isDesktopType(owner)) {
+                        methods.add(owner + "." + methodName + methodDescriptor);
+                    }
+                }
+
+                @Override
+                public void visitFieldInsn(int opcode, String owner, String fieldName, String fieldDescriptor) {
+                    if (isDesktopType(owner)) {
+                        fields.add(owner + "." + fieldName + ":" + fieldDescriptor);
+                    }
+                }
+            };
+        }
+    }
+
+    private static boolean isDesktopType(String internalName) {
+        return internalName.startsWith("java/applet/")
+                || internalName.startsWith("java/awt/")
+                || internalName.startsWith("javax/swing/")
+                || internalName.startsWith("javax/imageio/");
     }
 
     private static String mapDesktopType(String internalName) {
