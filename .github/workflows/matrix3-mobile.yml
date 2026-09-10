@@ -6,6 +6,7 @@ on:
     paths:
       - 'Mobile/**'
       - 'Server/**'
+      - 'Client/**'
       - '.github/workflows/matrix3-mobile.yml'
   workflow_dispatch:
 
@@ -33,6 +34,14 @@ jobs:
         run: |
           mkdir -p Mobile/app/libs
           jar cf Mobile/app/libs/matrix3-server.jar -C Server/build/classes/java/main .
+
+      - name: Compile Matrix3 client as Java 8 bytecode
+        env:
+          JAVA_TOOL_OPTIONS: -Dfile.encoding=windows-1252
+        run: bash Client/gradlew -p Client classes --no-daemon
+
+      - name: Remap desktop client APIs for Android
+        run: bash Server/gradlew -p Mobile :remapper:run --no-daemon
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
