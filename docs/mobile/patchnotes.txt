@@ -1,0 +1,7 @@
+2026-09-10
+- Added Java-only Android `Mobile/` application project for Matrix3.
+- Wired Matrix3 login and game launchers into isolated Android processes for local automatic startup.
+- Added app-private server-data installation and first-run revision-830 cache folder import.
+- Added local readiness checks for login port 7777 and game port 43593 before client startup.
+- Added Android framebuffer `SurfaceView` plus touch/key bridge for the revision-830 client port.
+- Documented the verified desktop-only client dependencies that must be replaced before the real 830 client can run in the APK.
