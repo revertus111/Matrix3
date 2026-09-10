@@ -40,9 +40,12 @@ android {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    // Matrix3's original server source contains Windows-1252 identifiers/strings.
-    // Preserve those bytes instead of rewriting or renaming legacy source.
-    options.encoding = 'windows-1252'
+    // Android Gradle Plugin applies UTF-8 late. Re-apply Matrix3's legacy
+    // Windows-1252 source encoding immediately before javac executes so
+    // original identifiers/strings are preserved without source rewrites.
+    doFirst {
+        options.encoding = 'windows-1252'
+    }
 }
 
 def generatedServerAssets = file("$buildDir/generated/serverDataAssets/server/data")
