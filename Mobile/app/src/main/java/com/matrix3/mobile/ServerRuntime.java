@@ -3,7 +3,6 @@ package com.matrix3.mobile;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.net.Uri;
-import android.system.Os;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -51,11 +50,13 @@ final class ServerRuntime {
         }
     }
 
-    static void prepareServerProcess(Context context) throws Exception {
+    static void prepareServerProcess(Context context) throws IOException {
         ensureBundledData(context);
         File serverHome = getServerHome(context);
+        // Matrix3 resolves its data paths relative to user.dir. Android does not
+        // expose a public chdir API, so the mobile host sets the Java working
+        // directory property before invoking either server launcher.
         System.setProperty("user.dir", serverHome.getAbsolutePath());
-        Os.chdir(serverHome.getAbsolutePath());
     }
 
     static boolean importCache(Context context, Uri treeUri) throws IOException {
