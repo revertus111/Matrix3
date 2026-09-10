@@ -2,7 +2,6 @@ package com.matrix3.mobile;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.content.UriPermission;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.KeyEvent;
@@ -26,6 +25,7 @@ public final class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         clientSurface = new MatrixClientSurfaceView(this);
+        MobileAwtBridge.attach(clientSurface);
         setContentView(clientSurface);
         bootstrap();
     }
@@ -48,7 +48,7 @@ public final class MainActivity extends Activity {
                         });
                     }
                 } catch (Throwable throwable) {
-                    showFailure("Bootstrap failed: " + throwable.getMessage());
+                    showFailure("Bootstrap failed: " + describe(throwable));
                 }
             }
         }, "Matrix3-Mobile-Bootstrap").start();
@@ -93,7 +93,7 @@ public final class MainActivity extends Activity {
                     }
                     startMatrixStack();
                 } catch (IOException exception) {
-                    showFailure("Cache import failed: " + exception.getMessage());
+                    showFailure("Cache import failed: " + describe(exception));
                 }
             }
         }, "Matrix3-Mobile-CacheImport").start();
@@ -116,7 +116,11 @@ public final class MainActivity extends Activity {
             return;
         }
 
-        clientSurface.setStatus("Matrix3 servers online. Preparing 830 Android client host...");
+        try {
+            ClientRuntime.start(clientSurface);
+        } catch (Throwable throwable) {
+            showFailure("Client start failed: " + describe(throwable));
+        }
     }
 
     private boolean waitForPort(int port, long timeoutMillis) {
@@ -135,6 +139,11 @@ public final class MainActivity extends Activity {
             }
         }
         return false;
+    }
+
+    private String describe(Throwable throwable) {
+        String message = throwable.getMessage();
+        return throwable.getClass().getSimpleName() + (message == null ? "" : ": " + message);
     }
 
     private void showFailure(final String message) {
