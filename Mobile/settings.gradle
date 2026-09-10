@@ -19,3 +19,4 @@ dependencyResolutionManagement {
 
 rootProject.name = 'Matrix3-Mobile'
 include ':app'
+include ':remapper'
