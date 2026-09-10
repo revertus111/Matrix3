@@ -24,6 +24,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Compile Matrix3 server as Java 8 bytecode
+        env:
+          JAVA_TOOL_OPTIONS: -Dfile.encoding=windows-1252
+        run: bash Server/gradlew -p Server classes --no-daemon
+
+      - name: Package Matrix3 server classes for Android
+        run: |
+          mkdir -p Mobile/app/libs
+          jar cf Mobile/app/libs/matrix3-server.jar -C Server/build/classes/java/main .
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
