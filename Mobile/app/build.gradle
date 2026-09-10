@@ -39,6 +39,12 @@ android {
     }
 }
 
+tasks.withType(JavaCompile).configureEach {
+    // Matrix3's original server source contains Windows-1252 identifiers/strings.
+    // Preserve those bytes instead of rewriting or renaming legacy source.
+    options.encoding = 'windows-1252'
+}
+
 def generatedServerAssets = file("$buildDir/generated/serverDataAssets/server/data")
 
 tasks.register('syncServerData', Copy) {
