@@ -40,14 +40,14 @@ jobs:
           JAVA_TOOL_OPTIONS: -Dfile.encoding=windows-1252
         run: bash Client/gradlew -p Client classes --no-daemon
 
-      - name: Remap desktop client APIs for Android
-        run: bash Server/gradlew -p Mobile :remapper:run --no-daemon
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install Android platform
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Remap desktop client APIs for Android
+        run: bash Server/gradlew -p Mobile :remapper:run --no-daemon
 
       - name: Build debug APK
         run: bash Server/gradlew -p Mobile :app:assembleDebug --no-daemon
